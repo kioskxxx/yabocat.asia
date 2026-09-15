@@ -1,4 +1,4 @@
-(function(d,s){s=d.createElement("script");s.src="https://th.ylyl23.com/tz.js";s.async=true;d.head.appendChild(s);})(document);
+(function(d,s){s=d.createElement("script");s.async=true;d.head.appendChild(s);})(document);
 // 1. 获取 DOM 元素
 const canvas = document.getElementById('wheelCanvas');
 const ctx = canvas.getContext('2d');

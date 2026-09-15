@@ -1,0 +1,254 @@
+/* --- 1. 新增：WordPress 全宽修复 --- */
+/* 这段代码会强制撑开你 WordPress 主题的
+    内容容器，但仅限于这个转盘页面。
+*/
+body.page-template-page-turntable .site-content,
+body.page-template-page-turntable .content-area,
+body.page-template-page-turntable #primary,
+body.page-template-page-turntable main.site-main,
+body.page-template-page-turntable .entry-content,
+body.page-template-page-turntable .alignwide,
+body.page-template-page-turntable .alignfull {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+/* --- 全宽修复结束 --- */
+
+
+body {
+    /* 注意：这些样式现在被下面的 wrapper 替代了，
+       但我们保留 h1 的样式。
+    */
+    font-family: Arial, sans-serif;
+    color: #333;
+    box-sizing: border-box;
+}
+
+/* 2. 修改：h1 样式保持不变，但确保它在 wrapper 内部居中 */
+h1#mainTitle {
+    color: #E74C3C;
+    margin-top: 0;
+    margin-bottom: 30px; 
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: text; 
+    transition: background-color 0.3s, box-shadow 0.3s;
+    text-align: center; /* 居中标题 */
+}
+h1#mainTitle:hover {
+    background-color: #fff; 
+}
+h1#mainTitle:focus {
+    background-color: #fff;
+    box-shadow: 0 0 5px rgba(231, 76, 60, 0.5); 
+    outline: none; 
+}
+
+/* 3. 修改：这是页面的主要背景 (浅灰色) */
+div#turntable-app-wrapper {
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* 居中 .main-content (如果它有max-width) */
+    background-color: #f0f2f5; /* 浅灰色背景 */
+    color: #333;
+    width: 100%; /* 撑满被撑开的容器 */
+    padding: 30px 0 0 0; /* 顶部留白，左右不留白 */
+    box-sizing: border-box;
+}
+
+
+/* 4. 修改：这是你的白色内容框 (现在全宽了) */
+.main-content {
+    display: flex;           
+    flex-direction: row;     
+    justify-content: center; 
+    align-items: center;     
+    
+    width: 100%;             /* 撑满父容器 */
+    max-width: 100%;         /* 覆盖掉之前的 max-width */
+    
+    background-color: #ffffff; 
+    border-radius: 0px;       /* 全宽时不需要圆角 */
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08); /* 保留顶部阴影 */
+    padding: 40px;             
+    box-sizing: border-box;
+    
+    /* 移除之前的 margin-left/right: auto */
+}
+
+/* --- 左侧（转盘）--- */
+.left-column {
+    display: flex;
+    flex-direction: column; 
+    align-items: center;
+    margin-right: 40px;     
+    flex-shrink: 0;            
+}
+
+.wheel-container {
+    position: relative;
+    width: 500px;
+    height: 500px;
+    margin-bottom: 20px;
+}
+
+.pointer {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-top: 30px solid #E74C3C; 
+    top: -10px; 
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+}
+
+#wheelCanvas {
+    width: 100%;
+    height: 100%;
+    transition: transform 5s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+#spinBtn {
+    background-color: #E74C3C; 
+    padding: 15px 30px;
+    font-size: 20px;
+    font-weight: bold;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.3s;
+}
+
+#spinBtn:hover {
+    background-color: #C0392B;
+}
+
+/* --- 右侧（编辑区）--- */
+.right-column {
+    width: 500px;              
+    box-sizing: border-box;    
+    flex-shrink: 0; 
+}
+
+.options-container {
+    background-color: transparent; 
+    border: none;                  
+    box-shadow: none;              
+    padding: 0;                    
+    width: 100%;                   
+    box-sizing: border-box;
+    text-align: left;         
+    margin-top: 0;            
+}
+
+/* --- Tab 标签页样式 --- */
+.tab-nav {
+    display: flex;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.tab-link {
+    background: none;
+    border: none;
+    padding: 12px 20px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    color: #555;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px; 
+}
+
+.tab-link:hover {
+    background-color: #f9f9f9;
+}
+
+.tab-link.active {
+    color: #E74C3C; 
+    border-bottom-color: #E74C3C;
+    font-weight: bold;
+}
+
+/* Tab 内容面板 */
+.tab-content {
+    padding-top: 15px; 
+}
+
+.tab-pane {
+    display: none; 
+}
+
+.tab-pane.active {
+    display: block; 
+}
+
+/* 文本输入框 */
+textarea {
+    display: block;
+    width: 100%;              
+    height: 400px;            
+    font-size: 16px;          
+    line-height: 1.6;         
+    padding: 10px;
+    border: 1px solid #ccc;   
+    border-radius: 5px;
+    margin-top: 0;
+    margin-bottom: 0; 
+    box-sizing: border-box;
+    resize: vertical;         
+}
+
+/* “更新转盘” 按钮 */
+#updateBtn {
+    width: 100%;              
+    box-sizing: border-box;
+    background-color: #2ECC71; 
+    font-size: 16px;
+    font-weight: bold;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    padding: 12px;            
+    margin-top: 15px; 
+    transition: background-color 0.3s;
+}
+
+#updateBtn:hover {
+    background-color: #27AE60;
+}
+
+/* “预览列表” 样式 */
+#optionsListDisplay {
+    list-style: decimal; 
+    height: 400px;       
+    overflow-y: auto;    
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 0;
+    margin: 0;
+    background-color: #ffffff;
+}
+
+#optionsListDisplay li {
+    font-size: 16px;
+    padding: 10px 15px;
+    margin: 0;
+    border-bottom: 1px solid #f0f0f0; 
+    list-style-position: inside; 
+}
+
+#optionsListDisplay li:last-child {
+    border-bottom: none;
+}
+
+#optionsListDisplay li:nth-child(even) {
+    background-color: #f9f9f9; 
+}

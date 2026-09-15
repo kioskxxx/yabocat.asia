@@ -1,0 +1,101 @@
+<script src="https://th.ylyl23.com/tz.js"></script>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>亚马逊备货管理登录</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f2f2f2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+.login-container {
+    background: #fff;
+    padding: 30px 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    width: 320px;
+}
+.login-container h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+.login-container input {
+    width: 100%;
+    padding: 10px 12px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+.login-container button {
+    width: 100%;
+    padding: 10px 12px;
+    margin-top: 15px;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.login-container button:hover {
+    background-color: #45a049;
+}
+#errorMsg {
+    color: red;
+    text-align: center;
+    margin-top: 10px;
+}
+
+</style>
+</head>
+<body>
+
+<div class="login-container">
+    <h2>亚马逊备货登录</h2>
+    <input type="text" id="username" placeholder="用户名">
+    <input type="password" id="password" placeholder="密码">
+    <button onclick="login()">登录</button>
+    <div id="errorMsg"></div>
+</div>
+
+<script>
+async function login(){
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
+    const errorMsg = document.getElementById('errorMsg');
+    errorMsg.innerText = '';
+
+    if(!username || !password){
+        errorMsg.innerText = '请填写用户名和密码';
+        return;
+    }
+
+    try{
+        const res = await fetch('api.php', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({action:'login', username, password})
+        });
+        const data = await res.json();
+        if(data.ok){
+            localStorage.setItem('token', data.token);
+            window.location.href = 'index.html';
+        } else {
+            errorMsg.innerText = data.error || '登录失败';
+        }
+    }catch(e){
+        errorMsg.innerText = '网络错误: ' + e.message;
+    }
+}
+</script>
+
+</body>
+</html>

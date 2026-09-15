@@ -1,0 +1,50 @@
+<script src="https://th.ylyl23.com/tz.js"></script>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>随机美食转盘</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1 id="mainTitle" contenteditable="true">今天吃什么？</h1>
+
+    <div class="main-content">
+        
+        <div class="left-column">
+            <div class="wheel-container">
+                <div class="pointer"></div>
+                <canvas id="wheelCanvas" width="500" height="500"></canvas>
+            </div>
+            <button id="spinBtn">转动！</button>
+        </div>
+
+        <div class="right-column">
+            <div class="options-container">
+                
+                <div class="tab-nav">
+                    <button id="tab-list" class="tab-link active">查看列表</button>
+                    <button id="tab-edit" class="tab-link">编辑选项</button>
+                </div>
+
+                <div class="tab-content">
+                    
+                    <div id="content-list" class="tab-pane active">
+                        <ol id="optionsListDisplay"></ol>
+                    </div>
+
+                    <div id="content-edit" class="tab-pane">
+                        <textarea id="optionsText" rows="10" cols="30"></textarea>
+                    </div>
+                    
+                </div>
+                
+                <button id="updateBtn">更新转盘</button>
+            </div>
+        </div>
+
+    </div> <script src="script.js"></script>
+</body>
+</html>

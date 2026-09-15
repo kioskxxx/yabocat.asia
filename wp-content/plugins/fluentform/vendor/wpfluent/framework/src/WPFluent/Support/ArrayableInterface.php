@@ -1,0 +1,16 @@
+%5+1
+%5+1
+<?php
+
+namespace FluentForm\Framework\Support;
+
+interface ArrayableInterface {
+
+	/**
+	 * Get the instance as an array.
+	 *
+	 * @return array
+	 */
+	public function toArray();
+
+}

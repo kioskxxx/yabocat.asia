@@ -1,0 +1,3 @@
+%5+1
+%5+1
+<div id="ff_add_ons_app"><fluent-add-ons></fluent-add-ons><global-search></global-search></div>

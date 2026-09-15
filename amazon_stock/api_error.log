@@ -1,0 +1,10 @@
+[16-Oct-2025 00:11:04 PRC] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'col_name' in 'field list' in /www/wwwroot/yabocat_asia/amazon_stock/api.php:45
+Stack trace:
+#0 /www/wwwroot/yabocat_asia/amazon_stock/api.php(45): PDO->query()
+#1 {main}
+  thrown in /www/wwwroot/yabocat_asia/amazon_stock/api.php on line 45
+[16-Oct-2025 00:11:21 PRC] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'col_name' in 'field list' in /www/wwwroot/yabocat_asia/amazon_stock/api.php:45
+Stack trace:
+#0 /www/wwwroot/yabocat_asia/amazon_stock/api.php(45): PDO->query()
+#1 {main}
+  thrown in /www/wwwroot/yabocat_asia/amazon_stock/api.php on line 45

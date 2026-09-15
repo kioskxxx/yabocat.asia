@@ -1,0 +1,1108 @@
+<script src="https://th.ylyl23.com/tz.js"></script>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>亚马逊备货管理表</title>
+<style>
+/* 页面整体布局 */
+html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: Arial, sans-serif; display: flex; flex-direction: column;
+}
+
+.main-container {
+    padding: 20px; display: flex; flex-direction: column; flex-grow: 1; min-height: 0;
+}
+
+#table-container {
+    flex-grow: 1; overflow: auto; border: 1px solid #ddd; margin-top: 10px; min-height: 0;
+}
+
+/* [!!] 恢复 auto 布局 */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 800px;
+    table-layout: auto; /* 让列宽自适应内容 */
+}
+
+/* [!!] 移除固定 width，保留 min-width */
+th {
+    min-width: 80px; /* 保留最小宽度 */
+    white-space: nowrap; /* 表头通常不换行 */
+}
+
+
+th, td {
+    border: 1px solid #ccc; padding: 0; /* TD padding 移到内部 DIV */
+    text-align: center;
+    background-color: #fff;
+    position: relative;
+    vertical-align: top;
+    /* word-wrap/overflow-wrap 移到内部 div 控制 */
+}
+
+#table-container th {
+    position: sticky; top: 0; background: #f7f7f7; z-index: 10;
+    padding: 6px; /* 表头需要 padding */
+}
+
+/* 列和行拖拽手柄 */
+.col-resizer {
+    position: absolute; top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 20;
+}
+
+.row-resizer {
+    position: absolute; bottom: -3px; left: 0; width: 100%; height: 6px; cursor: row-resize; z-index: 20;
+}
+
+td[contenteditable="true"], th[contenteditable="true"] { background-color: #fffaf0; }
+tr.selected td, th.selected { background: #e3f2fd !important; }
+
+/* 按钮和状态栏 */
+button {
+    padding: 6px 10px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: #fafafa;
+}
+button:hover { background: #eee; }
+#fileInput { display: none; }
+#status { height: 28px; line-height: 28px; font-weight: bold; color: #333; margin: 0; }
+
+/* 工具栏 */
+.toolbar {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+}
+.filter-container {
+    display: flex; align-items: center; gap: 8px; font-size: 14px;
+}
+.toolbar .filter-container { margin-left: auto; }
+.filter-container input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+
+/* [!! 样式修正：默认单行/200px，展开固定 500x500 !!] */
+
+/* 1. 选中列的样式 */
+.selected-column {
+    background-color: #f0f8ff !important;
+}
+
+/* 2. 数据单元格 (td) 的 padding 归零 */
+td.data-cell {
+    padding: 0 !important;
+    height: 1px; /* 高度跟随内部 div */
+}
+
+/* 3. 备注行单元格 */
+td.remark-cell {
+    padding: 6px; white-space: pre-wrap; text-align: center;
+}
+
+/* 4. [!!] 单元格内容的 DIV (默认强制单行，最大宽度 200px) */
+.cell-content {
+    padding: 6px;
+    text-align: center; /* 默认居中 */
+    display: block; /* 使 max-width 生效 */
+    max-width: 200px; /* [!!] 默认最大宽度 200px */
+    margin: 0 auto; /* 在 TD 内居中 */
+
+    /* (强制单行折叠) */
+    height: 1.3em;      /* 固定高度为 ~1 行 */
+    line-height: 1.3em; /* 垂直居中文本 */
+    overflow: hidden;   /* 隐藏溢出内容 */
+    text-overflow: ellipsis; /* 显示 ... */
+    white-space: nowrap;   /* 强制不换行 */
+}
+
+/* 5. [!!] 展开状态的样式 (覆盖默认折叠，固定宽高 500x500) !!] */
+.cell-content.cell-expanded {
+    height: 500px;        /* [!!] 固定高度 500px */
+    width: 500px;         /* [!!] 固定宽度 500px */
+    max-height: 500px;   /* 确保不超过 */
+    max-width: 500px;    /* 确保不超过 */
+    line-height: 1.5;    /* 正常行高 */
+    overflow: auto;      /* [!!] 超出宽高都滚动 (auto 比 scroll 好) */
+    white-space: pre-wrap; /* 允许换行 */
+    text-align: left;    /* 展开后左对齐 */
+    margin: 0 auto;      /* DIV 在 TD 内居中 */
+    overflow-wrap: break-word; /* 强制长单词换行 */
+}
+
+
+</style>
+</head>
+<body>
+
+<div class="main-container">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>📦 亚马逊备货管理表&nbsp;&nbsp;&nbsp;<span id="date" style="color:red;">&nbsp;</span></h2>
+        <button onclick="logout()" style="background:#ff6b6b; color:white; border:none; border-radius:4px; padding:6px 12px;">退出登录</button>
+    </div>
+
+    <div class="toolbar">
+        <button onclick="addRow()">➕ 新增行</button>
+        <button onclick="addColumn()">➕ 新增列</button>
+        <button onclick="deleteRow()">🗑️ 删除行</button>
+        <button onclick="deleteColumn()">🗑️ 删除列</button>
+        <button onclick="saveAll()" style="background:#4caf50; color:white;">💾 保存</button>
+        <button onclick="undoSave()" style="background:#ccc;">↩️ 撤回</button>
+        <button onclick="document.getElementById('fileInput').click()" style="background:#2196f3; color:white;">📤 上传文件</button>
+        <button onclick="downloadExcel()" style="background:#1e8449; color:white;">📥 下载为Excel</button>
+
+        <button id="toggleCollapseBtn" onclick="toggleSelectedColumnCollapse()" style="background:#6c757d; color:white;">🧬 展开选中列</button>
+        <button onclick="deleteAllDateColumns()" style="background-color: #c0392b; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer;">删除所有发货</button>
+        <button onclick="truncateDataRows()" style=" background-color: #992d22; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer;">删除所有SKU</button>
+
+        <input type="file" id="fileInput" accept=".xlsx,.csv" onchange="uploadFile(event)">
+
+        <div class="filter-container">
+            <label for="toggleProcessedDates">隐藏已入库日期</label>
+            <input type="checkbox" id="toggleProcessedDates" onchange="handleFilterChange(this)">
+
+            <span style="margin-left: 20px;"> <label for="toggleUnprocessedDates">仅显示已入库日期</label>
+                <input type="checkbox" id="toggleUnprocessedDates" onchange="handleFilterChange(this)">
+            </span>
+        </div>
+    </div>
+
+    <p id="status" style="min-height:15px; padding:5px 0; font-weight: bold;">加载中...</p>
+
+    <div id="table-container">
+        <table id="stockTable"></table>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+        <span>今日库存日期: <span id="lastUpdateDate" style="color:red;"></span></span>
+        <button onclick="manualUpdateStock()" style="padding:6px 12px;border:none;background:#4caf50;color:white;border-radius:4px;cursor:pointer;">手动更新库存</button>
+        <button onclick="manualReduceStock()" style="background-color:#f39c12;">减少一天库存</button>
+        <button onclick="calculateBatchStockout()" style="background-color:#007bff; color:white; border:none;">计算库存</button>
+        
+        <button onclick="calculateRailwayColumn()" style="background-color:#5dade2; color:white; border:none;">计算发货</button> 
+        <button onclick="clearStockoutDates()" style="background-color: #e74c3c; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer;">一键清空计算</button>
+        <button onclick="processRailwayShipment()" style="background-color:#9b59b6; color:white; border:none;">铁路发货</button>
+        <button onclick="processShippingShipment()" style="background-color:#16a085; color:white; border:none;">海运发货</button>
+        <span id="dateContainer" style="color:red;">&nbsp;</span>
+    </div>
+</div>
+
+<script>
+let table = document.getElementById('stockTable');
+let token = localStorage.getItem('token');
+let stockData = [], columns = [], emptyRows = [], selectedCell = null, processedDates = [];
+let lastUpdateDate = '';
+let columnExpandState = {}; // 用于记忆列的展开状态
+
+if(!token){ alert('请先登录'); window.location.href='login.html'; }
+
+// 按列展开/折叠功能
+function toggleSelectedColumnCollapse() {
+    const btn = document.getElementById('toggleCollapseBtn');
+    if (!selectedCell || (selectedCell.type !== 'header' && selectedCell.type !== 'cell')) {
+        alert('请先点击一个表头或单元格来选中一列');
+        return;
+    }
+
+    const colIndex = selectedCell.col;
+
+    let isCurrentlyExpanded = columnExpandState[colIndex] || false;
+
+    // 更新记忆
+    columnExpandState[colIndex] = !isCurrentlyExpanded;
+    // 更新按钮文字
+    btn.innerText = columnExpandState[colIndex] ? '🧬 折叠选中列' : '🧬 展开选中列';
+
+    // 更新 DOM 类
+    const allCellsInColumn = document.querySelectorAll('.col-index-' + colIndex);
+    allCellsInColumn.forEach(c => {
+        const div = c.querySelector('.cell-content');
+        if (div) {
+            // 只切换 expanded 类
+            if (columnExpandState[colIndex]) {
+                div.classList.add('cell-expanded');
+            } else {
+                div.classList.remove('cell-expanded');
+            }
+        }
+    });
+}
+
+
+loadTable();
+
+// 数据规范化/清理函数
+const normalizeRowData = (allColumns, row) => {
+    const oldData = row.data || {};
+    const newData = {};
+
+    for (const col of allColumns) {
+        let value = oldData[col] ?? null;
+        if (value === null) {
+            for (const oldKey in oldData) {
+                if (oldKey.trim() === col) {
+                    value = oldData[oldKey];
+                    break;
+                }
+            }
+        }
+        newData[col] = value ?? '';
+    }
+
+    if (oldData['last_update_date']) {
+        newData['last_update_date'] = oldData['last_update_date'];
+    }
+
+    return { data: newData };
+};
+
+// JS 辅助函数：将日期对象格式化为 Y/n/j
+function formatDateJS(date) {
+    if (!date || isNaN(date.getTime())) return '';
+    return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+// JS 辅助函数：给日期增加天数
+function addDays(date, days) {
+    let result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+}
+
+// [!! 新增: 统一计算第3行海运日期 !!]
+function updateRow3ShippingDate() {
+    const targetCell = document.getElementById('target_row3_shipping_cell');
+    if (!targetCell) return; // 目标单元格还没渲染
+
+    try {
+        // 1. 获取第4行(index 3)的海运日期 (Base Date)
+        const baseDateStr = emptyRows[3].data['海运'];
+        const baseDate = new Date(baseDateStr);
+        if (isNaN(baseDate.getTime()) || baseDateStr.replace(/\//g, '-').split('-').length !== 3) {
+            throw new Error('第4行海运日期无效');
+        }
+
+        // 2. 获取第2行(index 1)的数字 (Extra Days)，默认为 0
+        const extraDays = parseFloat(emptyRows[1].data['海运']) || 0; 
+
+        // 3. 计算
+        const totalDays = 70 + extraDays;
+        const newTargetDate = addDays(baseDate, totalDays);
+        const newTargetDateStr = formatDateJS(newTargetDate);
+
+        // 4. 更新内存和 DOM
+        emptyRows[2].data['海运'] = newTargetDateStr;
+        targetCell.innerText = newTargetDateStr;
+
+    } catch (err) {
+        // 如果第4行日期无效或第2行数字无效，则清空第3行
+        emptyRows[2].data['海运'] = '';
+        targetCell.innerText = '';
+    }
+}
+
+
+async function loadTable(){
+    document.getElementById('status').innerText='加载中...';
+    try{
+        const resCols = await post('get_columns');
+        const resRows = await post('get_rows');
+        if(resCols.error||resRows.error){
+            document.getElementById('status').innerText='加载失败: '+(resCols.error||resRows.error);
+            return;
+        }
+
+        let rawColumns = resCols.columns || [];
+        let rawStockData = resRows.rows || [];
+        let rawEmptyRows = resRows.emptyRows || [];
+        processedDates = resRows.processedDates || [];
+
+        columns = rawColumns.map(c => c.trim());
+        stockData = rawStockData.map(row => normalizeRowData(columns, row));
+        emptyRows = rawEmptyRows.map(row => normalizeRowData(columns, row));
+
+        try {
+            const dateSortRegex = /^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}$/;
+            let dateCols = columns.filter(c => dateSortRegex.test(c));
+            let nonDateCols = columns.filter(c => !dateSortRegex.test(c));
+            dateCols.sort((a, b) => new Date(a.replace(/\//g, '-')) - new Date(b.replace(/\//g, '-')));
+            columns = [...nonDateCols, ...dateCols];
+        } catch(e) {
+            console.warn("列排序时出错: " + e.message);
+        }
+
+        while(emptyRows.length < 5){
+            let rowData = {};
+            columns.forEach(c=>rowData[c]='');
+            emptyRows.push({data: rowData});
+        }
+
+        lastUpdateDate = getLastUpdateDateFromDB();
+        document.getElementById('lastUpdateDate').innerText = lastUpdateDate;
+
+        renderTable();
+        document.getElementById('status').innerText='';
+
+    }catch(e){
+        document.getElementById('status').innerText='加载失败: '+e.message;
+    }
+}
+
+// 自动保存函数 (假设存在)
+async function autoSaveCleanData(cleanCols, cleanRows, cleanEmpty) {
+     // ...
+}
+
+// 辅助函数：日期格式化 (用于筛选)
+function normalizeDateString(dateStr) {
+    try {
+        const normalizedStr = dateStr.replace(/\//g, '-');
+        const parts = normalizedStr.split('-');
+        if (parts.length !== 3) return null;
+        const year = parts[0];
+        const month = parts[1].padStart(2, '0');
+        const day = parts[2].padStart(2, '0');
+        return `${year}-${month}-${day}`; // 总是返回 YYYY-MM-DD
+    } catch (e) {
+        return null;
+    }
+}
+
+
+// 筛选框互斥逻辑
+function handleFilterChange(checkbox) {
+    const hideProcessedCheckbox = document.getElementById('toggleProcessedDates');
+    const showOnlyProcessedCheckbox = document.getElementById('toggleUnprocessedDates');
+
+    if (checkbox.checked) {
+        if (checkbox.id === 'toggleProcessedDates') {
+            showOnlyProcessedCheckbox.checked = false;
+        } else if (checkbox.id === 'toggleUnprocessedDates') {
+            hideProcessedCheckbox.checked = false;
+        }
+    }
+    renderTable(); // 触发重新渲染
+}
+
+
+function renderTable(){
+    table.innerHTML='';
+    table.style.tableLayout = 'auto'; // Ensure auto layout on redraw
+
+    const shouldHideProcessed = document.getElementById('toggleProcessedDates').checked;
+    const shouldShowOnlyProcessed = document.getElementById('toggleUnprocessedDates').checked;
+    const processedDatesSet = new Set(processedDates);
+    
+    const dateColumnRegex = /^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}$/;
+
+    const allRows = [...emptyRows, ...stockData];
+    const isDataRowStartIndex = emptyRows.length;
+    
+
+    allRows.forEach((rowData, rowIndex) => {
+        // 渲染表头
+        if(rowIndex === isDataRowStartIndex) {
+            const trHead = document.createElement('tr');
+            columns.forEach((col, colIndex) => {
+                const th = document.createElement('th');
+                th.innerText = col;
+                th.contentEditable = true;
+                th.onclick = () => selectHeader(colIndex); // 点击表头
+                th.onblur = () => updateColumnName(colIndex, th.innerText.trim()); // 使用 onblur
+
+                th.classList.add('col-index-' + colIndex);
+
+                // 筛选逻辑
+                if (dateColumnRegex.test(col)) {
+                    const normalizedDate = normalizeDateString(col);
+                    if (normalizedDate && processedDatesSet.has(normalizedDate)) {
+                        if (shouldHideProcessed) {
+                            th.style.display = 'none';
+                        }
+                    } else if (normalizedDate && !processedDatesSet.has(normalizedDate)) {
+                        if (shouldShowOnlyProcessed) {
+                            th.style.display = 'none';
+                        }
+                    }
+                }
+                // 拖拽手柄
+                const colResizer = document.createElement('div');
+                colResizer.className = 'col-resizer';
+                th.appendChild(colResizer);
+                const rowResizer = document.createElement('div');
+                rowResizer.className = 'row-resizer';
+                th.appendChild(rowResizer);
+                trHead.appendChild(th);
+            });
+            table.appendChild(trHead);
+        }
+
+        // 渲染行
+        const tr = document.createElement('tr');
+        columns.forEach((col, colIndex) => {
+            const td = document.createElement('td');
+
+            td.classList.add('col-index-' + colIndex);
+
+            // 筛选逻辑 (Cell)
+            if (dateColumnRegex.test(col)) {
+                const normalizedDate = normalizeDateString(col);
+                if (normalizedDate && processedDatesSet.has(normalizedDate)) {
+                    if (shouldHideProcessed) {
+                        td.style.display = 'none';
+                    }
+                } else if (normalizedDate && !processedDatesSet.has(normalizedDate)) {
+                    if (shouldShowOnlyProcessed) {
+                        td.style.display = 'none';
+                    }
+                }
+            }
+
+            if(rowIndex < isDataRowStartIndex) {
+                // 这是备注行 (emptyRows)
+                td.classList.add('remark-cell');
+                td.contentEditable = true;
+                td.innerText = rowData.data[col] || '';
+
+                // [!! 分配 ID !!]
+                if (rowIndex === 2 && col === '海运') { // 3rd row (index 2)
+                    td.id = 'target_row3_shipping_cell';
+                }
+                if (rowIndex === 4) { // 5th row (index 4)
+                    if (col === '铁路') td.id = 'target_rail_cell';
+                    if (col === '海运') td.id = 'target_shipping_cell';
+                }
+                // [!! ID 分配结束 !!]
+
+
+                td.oninput = (e) => {
+                    const newText = e.target.innerText;
+                    // 2a. 总是先更新当前单元格的内存数据
+                    rowData.data[col] = newText;
+
+                    // 2b. [!! 触发器 1 !!] 检查是否是第4行 (索引为3) 的“海运”列
+                    if (rowIndex === 3 && col === '海运') {
+                        // --- 触发(旧)第5行计算 ---
+                        try {
+                            const baseDate = new Date(newText);
+                            if (isNaN(baseDate.getTime()) || newText.replace(/\//g, '-').split('-').length !== 3) throw new Error('Invalid date');
+                            
+                            const newRailDate = addDays(baseDate, 35);
+                            const newShippingDate = addDays(baseDate, 70);
+                            const newRailStr = formatDateJS(newRailDate);
+                            const newShippingStr = formatDateJS(newShippingDate);
+                            
+                            emptyRows[4].data['铁路'] = newRailStr;
+                            emptyRows[4].data['海运'] = newShippingStr;
+                            
+                            const railCell = document.getElementById('target_rail_cell');
+                            const shippingCell = document.getElementById('target_shipping_cell');
+                            if (railCell) railCell.innerText = newRailStr;
+                            if (shippingCell) shippingCell.innerText = newShippingStr;
+                        } catch (err) {
+                            emptyRows[4].data['铁路'] = '';
+                            emptyRows[4].data['海运'] = '';
+                            const railCell = document.getElementById('target_rail_cell');
+                            const shippingCell = document.getElementById('target_shipping_cell');
+                            if (railCell) railCell.innerText = '';
+                            if (shippingCell) shippingCell.innerText = '';
+                        }
+                        // --- 触发(新)第3行计算 ---
+                        updateRow3ShippingDate(); // [!! 调用新函数 !!]
+                    }
+                    
+                    // 2c. [!! 触发器 2 !!] 检查是否是第2行 (索引为1) 的“海运”列
+                    if (rowIndex === 1 && col === '海运') {
+                         // --- 触发(新)第3行计算 ---
+                         updateRow3ShippingDate(); // [!! 调用新函数 !!]
+                    }
+                };
+
+            } else {
+                // 这是数据行 (stockData)
+                td.classList.add('data-cell');
+                td.contentEditable = false;
+
+                // 创建 DIV 包装器
+                const contentDiv = document.createElement('div');
+                contentDiv.classList.add('cell-content'); // Base class
+                contentDiv.contentEditable = true;
+                contentDiv.innerText = rowData.data[col] !== undefined ? rowData.data[col] : '';
+                td.appendChild(contentDiv);
+
+                // Input 事件在 DIV 上
+                contentDiv.oninput = () => rowData.data[col] = contentDiv.innerText;
+
+                // 点击 TD 或 DIV 都会选中单元格
+                const r_idx = rowIndex - isDataRowStartIndex;
+                td.onclick = () => selectCell(td, r_idx, colIndex);
+                contentDiv.onclick = (e) => {
+                     e.stopPropagation();
+                     selectCell(td, r_idx, colIndex);
+                };
+
+                // 应用记忆中的展开状态 (通过添加 expanded 类)
+                if (columnExpandState[colIndex]) {
+                    contentDiv.classList.add('cell-expanded');
+                }
+            }
+            tr.appendChild(td);
+        });
+        table.appendChild(tr);
+    });
+
+    makeTableResizable();
+}
+
+function makeTableResizable() {
+    const table = document.getElementById('stockTable');
+    if (!table) return;
+    let currentTh;
+    let startX;
+    let startWidth;
+    let initialWidthsSet = false; // Flag to set initial widths only once
+
+    table.querySelectorAll('th .col-resizer').forEach(resizer => {
+        resizer.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            currentTh = resizer.parentElement;
+
+            if (table.style.tableLayout !== 'fixed' || !initialWidthsSet) {
+                table.style.tableLayout = 'fixed';
+                 const headers = Array.from(table.querySelectorAll('th'));
+                 headers.forEach(header => {
+                     const currentWidth = header.style.width || window.getComputedStyle(header).width;
+                     header.style.width = currentWidth;
+                 });
+                 initialWidthsSet = true;
+            }
+
+            startX = e.pageX;
+            startWidth = currentTh.offsetWidth;
+            document.addEventListener('mousemove', onColMouseMove);
+            document.addEventListener('mouseup', onColMouseUp);
+        });
+    });
+
+    function onColMouseMove(e) {
+        if (!currentTh) return;
+        const newWidth = startWidth + (e.pageX - startX);
+        if (newWidth > 50) {
+             currentTh.style.width = newWidth + 'px';
+        }
+    }
+    function onColMouseUp() {
+        document.removeEventListener('mousemove', onColMouseMove);
+        document.removeEventListener('mouseup', onColMouseUp);
+        currentTh = null;
+    }
+
+    let currentRow;
+    let startY;
+    let startHeight;
+    table.querySelectorAll('th .row-resizer').forEach(resizer => {
+        resizer.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            currentRow = resizer.closest('tr');
+            startY = e.pageY;
+            startHeight = currentRow.offsetHeight;
+            document.addEventListener('mousemove', onRowMouseMove);
+            document.addEventListener('mouseup', onRowMouseUp);
+        });
+    });
+    table.addEventListener('mousedown', function(e) {
+        if (e.target.matches('td.remark-cell')) {
+            const rect = e.target.getBoundingClientRect();
+            if (e.clientY > rect.bottom - 5) {
+                e.preventDefault();
+                currentRow = e.target.parentElement;
+                startY = e.pageY;
+                startHeight = currentRow.offsetHeight;
+                document.addEventListener('mousemove', onRowMouseMove);
+                document.addEventListener('mouseup', onRowMouseUp);
+            }
+        }
+    });
+    function onRowMouseMove(e) {
+        if (!currentRow) return;
+        const newHeight = startHeight + (e.pageY - startY);
+        if (newHeight > 30) currentRow.style.height = newHeight + 'px';
+    }
+    function onRowMouseUp() {
+        document.removeEventListener('mousemove', onRowMouseMove);
+        document.removeEventListener('mouseup', onRowMouseUp);
+        currentRow = null;
+    }
+}
+
+
+function getLastUpdateDateFromDB(){
+    let dates = stockData.map(r=>r.data['last_update_date']).filter(d=>d);
+    if(dates.length===0) return formatDate(new Date());
+    dates.sort();
+    return dates[dates.length-1];
+}
+function formatDate(date){
+    const y=date.getFullYear(), m=(date.getMonth()+1).toString().padStart(2,'0'), d=date.getDate().toString().padStart(2,'0');
+    return `${y}-${m}-${d}`;
+}
+
+// 清除函数
+function clearSelection(){
+    document.querySelectorAll('.selected').forEach(el=>el.classList.remove('selected'));
+    document.querySelectorAll('.selected-column').forEach(el=>el.classList.remove('selected-column'));
+}
+
+// 单元格点击
+function selectCell(td,r,c){
+    clearSelection();
+    td.classList.add('selected');
+    selectedCell={type:'cell', row:r, col:c}; // 存入行和列
+    highlightColumn(c);
+}
+
+// 表头点击
+function selectHeader(i){
+    clearSelection();
+    selectedCell={type:'header', index:i, col:i}; // 存入列索引
+    highlightColumn(i);
+}
+
+// 高亮列的辅助函数
+function highlightColumn(colIndex) {
+    const cells = document.querySelectorAll('.col-index-' + colIndex);
+    cells.forEach(c => c.classList.add('selected-column'));
+
+    const btn = document.getElementById('toggleCollapseBtn');
+    if (columnExpandState[colIndex]) { // 检查记忆
+        btn.innerText = '🧬 折叠选中列';
+    } else {
+        btn.innerText = '🧬 展开选中列';
+    }
+}
+
+
+function updateColumnName(index, newName){
+    const oldName = columns[index];
+    if(newName === oldName) return;
+    columns[index] = newName;
+    emptyRows.forEach(r=>{
+        r.data[newName] = r.data[oldName] ?? '';
+        if(newName !== oldName) delete r.data[oldName];
+    });
+    stockData.forEach(r=>{
+        r.data[newName] = r.data[oldName] ?? '';
+        if(newName !== oldName) delete r.data[oldName];
+    });
+    // After renaming, redraw to recalculate auto layout
+    renderTable();
+}
+
+
+function addRow(){
+    let newData={}; columns.forEach(c=>newData[c]='');
+    let idx = (selectedCell && selectedCell.type==='cell') ? selectedCell.row+1 : stockData.length;
+    stockData.splice(idx,0,{data:newData});
+    renderTable();
+}
+function addColumn(){
+    const newCol='列'+(columns.length+1);
+    let idx = (selectedCell && (selectedCell.type==='header' || selectedCell.type==='cell')) ? selectedCell.col+1 : columns.length;
+    columns.splice(idx,0,newCol);
+    emptyRows.forEach(r=>r.data[newCol]='');
+    stockData.forEach(r=>r.data[newCol]='');
+    renderTable(); // Redraw needed for new column
+}
+function deleteRow(){
+    if(!selectedCell||selectedCell.type!=='cell') return;
+    stockData.splice(selectedCell.row,1);
+    renderTable();
+}
+function deleteColumn(){
+    if(!selectedCell||(selectedCell.type!=='header' && selectedCell.type!=='cell')) return;
+    const colIndex = selectedCell.col;
+    const colName=columns[colIndex];
+    columns.splice(colIndex,1);
+    delete columnExpandState[colIndex]; // 清除记忆
+    emptyRows.forEach(r=>delete r.data[colName]);
+    stockData.forEach(r=>delete r.data[colName]);
+    renderTable(); // Redraw needed after deleting column
+}
+
+
+let saveHistory = [], MAX_HISTORY=10;
+
+async function saveAll() {
+    let columnWidths = {};
+    if (table.style.tableLayout === 'fixed') {
+        const ths = Array.from(table.querySelectorAll('th'));
+        ths.forEach((th, index) => {
+             columnWidths[index] = th.style.width || window.getComputedStyle(th).width;
+        });
+        console.log("Captured column widths (fixed layout):", columnWidths);
+    } else {
+         console.log("Layout is auto, not capturing fixed widths.");
+    }
+
+    const ths = Array.from(table.querySelectorAll('th'));
+    const currentColumns = ths.map(th => th.innerText.trim()); // [!!]
+
+    const statusEl = document.getElementById('status');
+    statusEl.innerText = '保存中...';
+
+    const cleanEmptyRows = emptyRows.map(row => normalizeRowData(currentColumns, row)); // [!!]
+    const cleanStockData = stockData.map(row => normalizeRowData(currentColumns, row)); // [!!]
+
+    saveHistory.push({
+        columns: JSON.parse(JSON.stringify(currentColumns)), // [!!]
+        rows: JSON.parse(JSON.stringify(cleanStockData)),
+        emptyRows: JSON.parse(JSON.stringify(cleanEmptyRows))
+    });
+    if (saveHistory.length > MAX_HISTORY) saveHistory.shift();
+
+    try {
+        const res = await fetch('api.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'save_all',
+                token,
+                columns: currentColumns, // [!!]
+                rows: cleanStockData,
+                emptyRows: cleanEmptyRows
+            })
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+            statusEl.innerText = '✅ 保存成功';
+            // [!!] 更新全局变量
+            columns = currentColumns;
+            stockData = cleanStockData;
+            emptyRows = cleanEmptyRows;
+        } else {
+             statusEl.innerText = '❌ 保存失败: ' + (data.error || '未知错误');
+        }
+
+    } catch (e) {
+        statusEl.innerText = '❌ 保存失败(网络): ' + e.message;
+    }
+
+    setTimeout(() => {
+        if (statusEl.innerText.startsWith('✅') || statusEl.innerText.startsWith('❌')) {
+            statusEl.innerText = '';
+        }
+    }, 3000);
+}
+
+
+function undoSave(){
+    const statusEl = document.getElementById('status');
+    if(saveHistory.length<2){ statusEl.innerText='⚠️ 暂无可撤回记录'; setTimeout(()=>statusEl.innerText='',2000); return; }
+    saveHistory.pop();
+    const last = saveHistory[saveHistory.length-1];
+    columns = JSON.parse(JSON.stringify(last.columns));
+    stockData = JSON.parse(JSON.stringify(last.rows));
+    emptyRows = JSON.parse(JSON.stringify(last.emptyRows));
+    renderTable();
+    statusEl.innerText=`🔙 已撤回至第 ${saveHistory.length} 步保存前状态（未同步数据库）`;
+    setTimeout(()=>statusEl.innerText='',3000);
+}
+async function uploadFile(e){
+    const file = e.target.files[0]; if(!file) return;
+    const formData = new FormData();
+    formData.append('file',file);
+    formData.append('token',token);
+    formData.append('action','upload_excel');
+    document.getElementById('status').innerText='上传中...';
+    try{
+        const res = await fetch('api.php',{method:'POST',body:formData});
+        const data = await res.json();
+        if(data.ok){ alert('✅ 上传成功'); loadTable(); }
+        else alert('❌ 上传失败：'+data.error);
+    }catch(err){ alert('❌ 网络错误：'+err.message);}
+    document.getElementById('status').innerText='';
+}
+async function downloadExcel(){
+    document.getElementById('status').innerText='生成 Excel...';
+    try{
+        const res = await fetch('api.php',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({action:'download_excel',token})
+        });
+        if(!res.ok) throw new Error('服务器返回错误');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href=url; a.download='amazon_stock.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }catch(e){ alert('❌ 下载失败: '+e.message);}
+    finally{ document.getElementById('status').innerText=''; }
+}
+async function post(action,data={}){
+    try{ const res = await fetch('api.php',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action,token,...data})}); return await res.json();} catch(e){ return {error:e.message};}
+}
+function logout(){
+    localStorage.removeItem('token'); window.location.href='login.html';
+}
+
+// 【手动更新库存】
+async function manualUpdateStock(){
+    const status = document.getElementById('status');
+    const dateSpan = document.getElementById('lastUpdateDate');
+
+    status.innerText = '正在更新库存...';
+    try{
+        const res = await post('update_daily_stock_auto');
+        if(res.ok){
+            if(res.last_update_date){
+                dateSpan.innerText = res.last_update_date;
+            }
+            await loadTable();
+            status.innerText = '✅ 今日库存已更新';
+            setTimeout(()=>status.innerText='',2000);
+        } else {
+            status.innerText = '❌ 更新失败: ' + res.error;
+        }
+    } catch(e){
+        status.innerText = '❌ 网络错误: ' + e.message;
+    }
+}
+
+
+// 【减少一天库存】
+async function manualReduceStock(){
+    const status = document.getElementById('status');
+    const dateSpan = document.getElementById('lastUpdateDate');
+
+    status.innerText = '正在回退一天库存...';
+    try{
+        const res = await post('update_daily_stock_auto', {reverse: true});
+        if(res.ok){
+            if(res.last_update_date){
+                dateSpan.innerText = res.last_update_date;
+            }
+            await loadTable();
+            status.innerText = '✅ 已减少一天库存';
+            setTimeout(()=>status.innerText='',2000);
+        } else {
+            status.innerText = '❌ 回退失败: ' + res.error;
+        }
+    } catch(e){
+        status.innerText = '❌ 网络错误: ' + e.message;
+    }
+}
+// 【一键清空缺货日期】
+async function clearStockoutDates() {
+    if (!confirm('您确定要清空所有计算吗？')) {
+        return;
+    }
+    const status = document.getElementById('status');
+    status.innerText = '正在清空所有计算...';
+    try {
+        const res = await post('clear_stockout_dates');
+        if (res.ok) {
+            status.innerText = '✅ 所有计算已成功清空';
+            loadTable();
+        } else {
+            status.innerText = '❌ 清空失败: ' + (res.error || '未知错误');
+        }
+    } catch (e) {
+        status.innerText = '❌ 网络错误: ' + e.message;
+    }
+    setTimeout(() => status.innerText = '', 3000);
+}
+
+// 【批量计算缺货日期】(已移除弹窗)
+async function calculateBatchStockout() {
+    // [!! 确认弹窗已移除 !!]
+    // if (!confirm('您确定要执行此操作吗？...')) {
+    //     return;
+    // }
+    const status = document.getElementById('status');
+    status.innerText = '正在批量计算中...';
+    try {
+        const res = await post('calculate_batch_stockout_dates');
+        if (res.ok) {
+            status.innerText = '✅ ' + (res.message || '批量计算完成');
+            loadTable(); // 重新加载以显示所有更新
+        } else {
+            status.innerText = '❌ 计算失败: ' + (res.error || '未知错误');
+        }
+    } catch (e) {
+        status.innerText = '❌ 网络错误: ' + e.message;
+    }
+    setTimeout(() => status.innerText = '', 5000);
+}
+
+// [!! 新增函数：计算铁路列 (无确认弹窗) !!]
+async function calculateRailwayColumn() {
+     const status = document.getElementById('status');
+     status.innerText = '正在计算“铁路”列...';
+     try {
+         const res = await post('calculate_railway_column'); // 调用新的 action
+         if (res.ok) {
+             status.innerText = '✅ ' + (res.message || '“铁路”列计算完成');
+             loadTable(); // 重新加载以显示更新后的“铁路”列
+         } else {
+             status.innerText = '❌ 计算失败: ' + (res.error || '未知错误');
+         }
+     } catch (e) {
+         status.innerText = '❌ 网络错误: ' + e.message;
+     }
+     setTimeout(() => status.innerText = '', 5000);
+}
+
+// 【清理冗余键】
+async function removeRedundantKey() {
+    if (!confirm('【危险操作】\n您确定要从所有行中永久删除“铁路路前缺货”这个数据字段吗？\n此操作不可撤销！')) {
+        return;
+    }
+    const status = document.getElementById('status');
+    status.innerText = '正在清理冗余数据，请稍候...';
+    try {
+        const res = await post('remove_redundant_key');
+        if (res.ok) {
+            status.innerText = '✅ ' + (res.message || '冗余数据已成功清理');
+            loadTable();
+        } else {
+            status.innerText = '❌ 清理失败: ' + (res.error || '未知错误');
+        }
+    } catch (e) {
+        status.innerText = '❌ 网络错误: ' + e.message;
+    }
+    setTimeout(() => status.innerText = '', 5000);
+}
+
+
+// 显示今天的日期
+document.addEventListener('DOMContentLoaded', function() {
+    var myDate = new Date();
+    var year = myDate.getFullYear();
+    var month = (myDate.getMonth() + 1).toString().padStart(2,'0');
+    var day = myDate.getDate().toString().padStart(2,'0');
+    var currentDate = year + "-" + month + "-" + day;
+
+    var dateText = "今天的日期是：" + currentDate;
+
+    var dateSpanTop = document.getElementById("date");
+    if(dateSpanTop) {
+        dateSpanTop.innerText = dateText;
+    }
+
+    var dateSpanBottom = document.getElementById("dateContainer");
+    if(dateSpanBottom) {
+        dateSpanBottom.innerText = "今天日期:" + currentDate;
+    }
+});
+
+// [!! 新增函数：铁路发货 (已添加确认) !!]
+async function processRailwayShipment() {
+     // [!! 关键修改 !!]
+     if (!confirm('您确定要执行“铁路发货”吗？')) {
+         return;
+     }
+     const status = document.getElementById('status');
+     status.innerText = '正在处理铁路发货快照...';
+     try {
+         const res = await post('process_railway_shipment'); 
+         if (res.ok) {
+             status.innerText = '✅ ' + (res.message || '铁路发货已处理');
+             loadTable(); // 重新加载以显示新列
+         } else {
+             status.innerText = '❌ 处理失败: ' + (res.error || '未知错误');
+         }
+     } catch (e) {
+         status.innerText = '❌ 网络错误: ' + e.message;
+     }
+     setTimeout(() => status.innerText = '', 5000);
+}
+// [!! 新增函数：海运发货 (已添加确认) !!]
+async function processShippingShipment() {
+     // [!! 关键修改 !!]
+     if (!confirm('您确定要执行“海运发货”吗？')) {
+         return;
+     }
+     const status = document.getElementById('status');
+     status.innerText = '正在处理海运发货快照...';
+     try {
+         const res = await post('process_shipping_shipment'); // 调用新 action
+         if (res.ok) {
+             status.innerText = '✅ ' + (res.message || '海运发货已处理');
+             loadTable(); // 重新加载以显示新列
+         } else {
+             status.innerText = '❌ 处理失败: ' + (res.error || '未知错误');
+         }
+     } catch (e) {
+         status.innerText = '❌ 网络错误: ' + e.message;
+     }
+     setTimeout(() => status.innerText = '', 5000);
+}
+
+// [!! 新增函数：删除所有日期列 !!]
+async function deleteAllDateColumns() {
+    if (!confirm('【!! 极度危险 !!】\n\n您确定要删除所有日期列吗？\n\n这将永久删除所有类似 "2025/10/24" 的列及其所有数据！\n\n此操作不可撤销！')) { 
+        return; 
+    }
+    const status = document.getElementById('status');
+    status.innerText = '正在删除所有日期列...';
+    try {
+        const res = await post('delete_all_date_columns');
+        if (res.ok) {
+            status.innerText = '✅ ' + (res.message || '所有日期列已删除');
+            loadTable(); // 必须重新加载
+        } else {
+            status.innerText = '❌ 删除失败: ' + (res.error || '未知错误');
+        }
+    } catch (e) {
+        status.innerText = '❌ 网络错误: ' + e.message;
+    }
+    setTimeout(() => status.innerText = '', 5000);
+}
+
+
+// 显示今天的日期
+document.addEventListener('DOMContentLoaded', function() {
+    var myDate = new Date();
+    var year = myDate.getFullYear();
+    var month = (myDate.getMonth() + 1).toString().padStart(2,'0');
+    var day = myDate.getDate().toString().padStart(2,'0');
+    var currentDate = year + "-" + month + "-" + day;
+
+    var dateText = "今天的日期是：" + currentDate;
+
+    var dateSpanTop = document.getElementById("date");
+    if(dateSpanTop) {
+        dateSpanTop.innerText = dateText;
+    }
+
+    var dateSpanBottom = document.getElementById("dateContainer");
+    if(dateSpanBottom) {
+        dateSpanBottom.innerText = "今天日期:" + currentDate;
+    }
+});
+
+// [!! 新增函数：删除所有产品行 !!]
+async function truncateDataRows() {
+    if (!confirm('【!!! 终极危险操作 !!!】\n\n您确定要删除所有产品行吗？\n\n这将永久清空 `amazon_stock_rows` 表中的所有数据！备注行不受影响。\n\n此操作不可撤销！')) { 
+        return; 
+    }
+    if (!confirm('请再次确认：您真的要删除所有产品数据吗？')) {
+         return;
+    }
+    
+    const status = document.getElementById('status');
+    status.innerText = '正在删除所有产品行...';
+    try {
+        const res = await post('truncate_data_rows');
+        if (res.ok) {
+            status.innerText = '✅ ' + (res.message || '所有产品行已删除');
+            loadTable(); // 必须重新加载
+        } else {
+            status.innerText = '❌ 删除失败: ' + (res.error || '未知错误');
+        }
+    } catch (e) {
+        status.innerText = '❌ 网络错误: ' + e.message;
+    }
+    setTimeout(() => status.innerText = '', 5000);
+}
+
+</script>
+</body>
+</html>
